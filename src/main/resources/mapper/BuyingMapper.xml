@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.green.buying.ProductMapper">
+    <!-- 구매할 상품 추가할게 있다면 추가할것 -->
+    <insert id="insProduct" useGeneratedKeys="true" keyProperty="productPk">
+        INSERT INTO t_purchase_product
+        SET user_pk = #{userPk}, category_pk = #{category}, product_nm = #{name}, memo = #{memo}
+    </insert>
+    <!-- 구매할 상품. 즉 userpk을 키값으로 모두 불러올것  -->
+    <select id="selProduct">
+        SELECT A.product_pk AS productPk, B.category_nm AS categoryNm,
+        A.product_nm AS productNm, A.memo, A.buying_check AS buyingCheck,
+        A.buying_date AS buyingDate, A.create_at AS createdAt
+        FROM t_purchase_product A
+        JOIN t_category B ON A.category_pk = B.category_pk
+        WHERE A.user_pk = #{userPk}
+        <if test="isList == 0">
+            AND A.buying_check <![CDATA[<]]> 2
+        </if>
+        <if test="isList == 1">
+            AND A.buying_check = 0
+            <!-- 구매할 목록을 조회할것 -->
+        </if>
+        <if test="isList == 2">
+            AND A.buying_check = 1
+            <!-- 구매 확정난게 있으면 1로 하고 확정난 목록을 조회할것 -->
+        </if>
+        <if test="buyingDate != '' and buyingDate != '0000-00-00'">
+            AND DATE(buying_date) = #{buyingDate}
+        </if>
+        <if test="createdAt != '' and createdAt != '0000-00-00'">
+            AND DATE(created_at) = #{createdAt}
+        </if>
+    </select>
+    <!-- 수정할 목록이 있으면 -->
+    <update id="updProduct">
+        UPDATE t_purchase_product
+        SET category_pk = #{categoryPk}, product_nm = #{productNm}, memo= #{memo}
+        WHERE product_pk = #{productPk}
+    </update>
+    <!-- 중간에 삭제할 목록이 있으면 -->
+    <delete id="delProduct">
+        DELETE FROM t_purchase_product
+        <where>
+            product_pk IN
+            <foreach collection="productPk" item="productPk" open="(" close=")" separator=",">
+                #{productPk}
+            </foreach>
+            AND buying_check = 0 AND user_pk = #{userPk}
+        </where>
+    </delete>
+    <!-- 구매확정 처리한 목록이 있으면 -->
+    <update id="completeProduct">
+        UPDATE t_purchase_product
+        SET buying_check = 1, buying_date = NOW()
+        WHERE product_pk = #{productPk}
+    </update>
+    <!-- 구매확정 났을 경우 리스트에서 숨기고 숨겨놓은 리스트에다가 pk값만 추가해둘것 -->
+    <update id="cplistProduct">
+        UPDATE t_purchase_product
+        SET buying_check = 2
+        WHERE product_pk IN
+        <foreach collection="productPk" item="productPk" open="(" close=")" separator=",">
+            #{productPk}
+        </foreach>
+        AND buying_check = 1
+    </update>
+</mapper>
